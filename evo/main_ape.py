@@ -41,7 +41,7 @@ SEP = "-" * 80  # separator line
 
 def ape(traj_ref: PosePath3D, traj_est: PosePath3D,
         pose_relation: metrics.PoseRelation, align: bool = False,
-        correct_scale: bool = False, n_to_align: int = -1,
+        correct_scale: bool = False, n_to_align: float = -1.0,
         align_origin: bool = False, ref_name: str = "reference",
         est_name: str = "estimate",
         change_unit: typing.Optional[metrics.Unit] = None,
@@ -86,7 +86,7 @@ def ape(traj_ref: PosePath3D, traj_est: PosePath3D,
         title += "\n(with origin alignment)"
     else:
         title += "\n(not aligned)"
-    if (align or correct_scale) and n_to_align != -1:
+    if (align or correct_scale) and n_to_align != -1.0:
         title += " (aligned poses: {})".format(n_to_align)
 
     if project_to_plane:

@@ -233,7 +233,7 @@ def run(args):
                 name, args.t_offset))
             traj.timestamps += args.t_offset
 
-    if args.n_to_align != -1 and not (args.align or args.correct_scale):
+    if args.n_to_align != -1.0 and not (args.align or args.correct_scale):
         die("--n_to_align is useless without --align or/and --correct_scale")
 
     # TODO: this is fugly, but is a quick solution for remembering each synced
@@ -241,6 +241,10 @@ def run(args):
     synced = (args.subcommand == "kitti" and ref_traj) or any(
         (args.sync, args.align, args.correct_scale, args.align_origin))
     synced_refs = {}
+    ref_traj.align_tran(
+                    ref_traj, correct_scale=args.correct_scale,
+                    correct_only_scale=args.correct_scale and not args.align,
+                    n=args.n_to_align)
     if synced:
         from evo.core import sync
         if not args.ref:
@@ -258,6 +262,10 @@ def run(args):
                 logger.debug(SEP)
                 logger.debug("Aligning {} to reference.".format(name))
                 trajectories[name].align(
+                    ref_traj_tmp, correct_scale=args.correct_scale,
+                    correct_only_scale=args.correct_scale and not args.align,
+                    n=args.n_to_align)
+                trajectories[name].align_tran(
                     ref_traj_tmp, correct_scale=args.correct_scale,
                     correct_only_scale=args.correct_scale and not args.align,
                     n=args.n_to_align)

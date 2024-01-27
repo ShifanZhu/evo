@@ -27,7 +27,7 @@ def parser() -> argparse.ArgumentParser:
     algo_opts.add_argument(
         "--n_to_align",
         help="the number of poses to use for Umeyama alignment, "
-        "counted from the start (default: all)", default=-1, type=int)
+        "counted from the start (default: all)", default=-1, type=float)
     algo_opts.add_argument(
         "--align_origin",
         help="align the trajectory origin to the origin of the reference "

@@ -43,7 +43,7 @@ def rpe(traj_ref: PosePath3D, traj_est: PosePath3D,
         pose_relation: metrics.PoseRelation, delta: float,
         delta_unit: metrics.Unit, rel_delta_tol: float = 0.1,
         all_pairs: bool = False, pairs_from_reference: bool = False,
-        align: bool = False, correct_scale: bool = False, n_to_align: int = -1,
+        align: bool = False, correct_scale: bool = False, n_to_align: float = -1.0,
         align_origin: bool = False, ref_name: str = "reference",
         est_name: str = "estimate", support_loop: bool = False,
         change_unit: typing.Optional[metrics.Unit] = None,
@@ -89,7 +89,7 @@ def rpe(traj_ref: PosePath3D, traj_est: PosePath3D,
         title += "\n(with origin alignment)"
     else:
         title += "\n(not aligned)"
-    if (align or correct_scale) and n_to_align != -1:
+    if (align or correct_scale) and n_to_align != -1.0:
         title += " (aligned poses: {})".format(n_to_align)
 
     if project_to_plane:

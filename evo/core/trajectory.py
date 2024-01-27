@@ -231,7 +231,7 @@ class PosePath3D(object):
 
     def align(self, traj_ref: 'PosePath3D', correct_scale: bool = False,
               correct_only_scale: bool = False,
-              n: int = -1) -> geometry.UmeyamaResult:
+              n: float = -1.0) -> geometry.UmeyamaResult:
         """
         align to a reference trajectory using Umeyama alignment
         :param traj_ref: reference trajectory
@@ -241,18 +241,20 @@ class PosePath3D(object):
         :return: the result parameters of the Umeyama algorithm
         """
         with_scale = correct_scale or correct_only_scale
+        print("shape:", traj_ref.positions_xyz.shape)
+        align_number = int(n * traj_ref.positions_xyz.shape[0])
         if correct_only_scale:
             logger.debug("Correcting scale...")
         else:
             logger.debug("Aligning using Umeyama's method..." +
                          (" (with scale correction)" if with_scale else ""))
-        if n == -1:
+        if n == -1.0:
             r_a, t_a, s = geometry.umeyama_alignment(self.positions_xyz.T,
                                                      traj_ref.positions_xyz.T,
                                                      with_scale)
         else:
             r_a, t_a, s = geometry.umeyama_alignment(
-                self.positions_xyz[:n, :].T, traj_ref.positions_xyz[:n, :].T,
+                self.positions_xyz[:align_number, :].T, traj_ref.positions_xyz[:align_number, :].T,
                 with_scale)
 
         if not correct_only_scale:
@@ -260,6 +262,7 @@ class PosePath3D(object):
                          "\nTranslation of alignment:\n{}".format(r_a, t_a))
         logger.debug("Scale correction: {}".format(s))
 
+        print("r t", r_a, t_a)
         if correct_only_scale:
             self.scale(s)
         elif correct_scale:
@@ -269,6 +272,51 @@ class PosePath3D(object):
             self.transform(lie.se3(r_a, t_a))
 
         return r_a, t_a, s
+    
+    def align_tran(self, traj_ref: 'PosePath3D', correct_scale: bool = False,
+              correct_only_scale: bool = False,
+              n: float = -1.0) -> geometry.UmeyamaResult:
+        """
+        align to a reference trajectory using Umeyama alignment
+        :param traj_ref: reference trajectory
+        :param correct_scale: set to True to adjust also the scale
+        :param correct_only_scale: set to True to correct the scale, but not the pose
+        :param n: the number of poses to use, counted from the start (default: all)
+        :return: the result parameters of the Umeyama algorithm
+        """
+        # with_scale = correct_scale or correct_only_scale
+        # print("shape:", traj_ref.positions_xyz.shape)
+        # align_number = int(n * traj_ref.positions_xyz.shape[0])
+        # if correct_only_scale:
+        #     logger.debug("Correcting scale...")
+        # else:
+        #     logger.debug("Aligning using Umeyama's method..." +
+        #                  (" (with scale correction)" if with_scale else ""))
+        # if n == -1.0:
+        #     r_a, t_a, s = geometry.umeyama_alignment(self.positions_xyz.T,
+        #                                              traj_ref.positions_xyz.T,
+        #                                              with_scale)
+        # else:
+        #     r_a, t_a, s = geometry.umeyama_alignment(
+        #         self.positions_xyz[:align_number, :].T, traj_ref.positions_xyz[:align_number, :].T,
+        #         with_scale)
+
+        # if not correct_only_scale:
+        #     logger.debug("Rotation of alignment:\n{}"
+        #                  "\nTranslation of alignment:\n{}".format(r_a, t_a))
+        # logger.debug("Scale correction: {}".format(s))
+
+        r_a = np.identity(3)
+        t_a = -self.positions_xyz[0]
+        if correct_only_scale:
+            self.scale(1)
+        elif correct_scale:
+            self.scale(1)
+            self.transform(lie.se3(r_a, t_a))
+        else:
+            self.transform(lie.se3(r_a, t_a))
+
+        return r_a, t_a, 1
 
     def align_origin(self, traj_ref: 'PosePath3D') -> np.ndarray:
         """

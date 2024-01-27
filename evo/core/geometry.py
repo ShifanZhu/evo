@@ -82,6 +82,7 @@ def umeyama_alignment(x: np.ndarray, y: np.ndarray,
     # scale & translation, eq. 42 and 41
     c = 1 / sigma_x * np.trace(np.diag(d).dot(s)) if with_scale else 1.0
     t = mean_y - np.multiply(c, r.dot(mean_x))
+    # t = np.zeros(m)
 
     return r, t, c
 
