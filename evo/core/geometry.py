@@ -51,8 +51,12 @@ def umeyama_alignment(x: np.ndarray, y: np.ndarray,
     m, n = x.shape
 
     # means, eq. 34 and 35
-    mean_x = x.mean(axis=1)
-    mean_y = y.mean(axis=1)
+    # mean_x = x.mean(axis=1)
+    # mean_y = y.mean(axis=1)
+    # Make the origin position aligned
+    mean_x = x[:, 0]
+    mean_y = y[:, 0]
+    # mean_x =
 
     # variance, eq. 36
     # "transpose" for column subtraction

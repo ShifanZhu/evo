@@ -29,6 +29,7 @@ import numpy as np
 
 import evo.common_ape_rpe as common
 from evo.core import lie_algebra, sync, metrics
+from evo.core import lie_algebra as lie
 from evo.core.result import Result
 from evo.core.trajectory import PosePath3D, PoseTrajectory3D, Plane
 from evo.tools import file_interface, log
@@ -48,17 +49,30 @@ def rpe(traj_ref: PosePath3D, traj_est: PosePath3D,
         est_name: str = "estimate", support_loop: bool = False,
         change_unit: typing.Optional[metrics.Unit] = None,
         project_to_plane: typing.Optional[Plane] = None) -> Result:
+    # print("size0:", len(traj_ref.poses_se3), len(traj_est.poses_se3))
+    # print("time0: ", traj_est.timestamps[0], traj_ref.timestamps[0])
 
     # Align the trajectories.
     only_scale = correct_scale and not align
     alignment_transformation = None
     if align or correct_scale:
         logger.debug(SEP)
+        # Translate aligned trajectory to Zero position
+        traj_ref.align_tran(
+                    traj_ref, correct_scale=correct_scale,
+                    correct_only_scale=correct_scale and not align,
+                    n=n_to_align)
+        traj_est.align_tran(
+                        traj_ref, correct_scale=correct_scale,
+                        correct_only_scale=correct_scale and not align,
+                        n=n_to_align)
         alignment_transformation = lie_algebra.sim3(
             *traj_est.align(traj_ref, correct_scale, only_scale, n=n_to_align))
+        
     elif align_origin:
         logger.debug(SEP)
         alignment_transformation = traj_est.align_origin(traj_ref)
+    # print("size1:", len(traj_ref.poses_se3), len(traj_est.poses_se3))
 
     # Projection is done after potential 3D alignment & transformation steps.
     if project_to_plane:
@@ -67,6 +81,7 @@ def rpe(traj_ref: PosePath3D, traj_est: PosePath3D,
                      project_to_plane.value)
         traj_ref.project(project_to_plane)
         traj_est.project(project_to_plane)
+    # print("size2:", len(traj_ref.poses_se3), len(traj_est.poses_se3))
 
     # Calculate RPE.
     logger.debug(SEP)
@@ -98,7 +113,8 @@ def rpe(traj_ref: PosePath3D, traj_est: PosePath3D,
     rpe_result = rpe_metric.get_result(ref_name, est_name)
     rpe_result.info["title"] = title
     logger.debug(SEP)
-    logger.info(rpe_result.pretty_str())
+    # common out
+    # logger.info(rpe_result.pretty_str())
 
     # Restrict trajectories to delta ids for further processing steps.
     if support_loop:
@@ -135,65 +151,145 @@ def rpe(traj_ref: PosePath3D, traj_est: PosePath3D,
 
 def run(args: argparse.Namespace) -> None:
 
-    log.configure_logging(args.verbose, args.silent, args.debug,
-                          local_logfile=args.logfile)
-    if args.debug:
-        from pprint import pformat
-        parser_str = pformat({arg: getattr(args, arg) for arg in vars(args)})
-        logger.debug("main_parser config:\n{}".format(parser_str))
-    logger.debug(SEP)
+    # log.configure_logging(args.verbose, args.silent, args.debug,
+    #                       local_logfile=args.logfile)
+    # if args.debug:
+    #     from pprint import pformat
+    #     parser_str = pformat({arg: getattr(args, arg) for arg in vars(args)})
+    #     logger.debug("main_parser config:\n{}".format(parser_str))
+    # logger.debug(SEP)
 
-    traj_ref, traj_est, ref_name, est_name = common.load_trajectories(args)
-    pose_relation = common.get_pose_relation(args)
-    delta_unit = common.get_delta_unit(args)
-    change_unit = metrics.Unit(args.change_unit) if args.change_unit else None
-    plane = Plane(args.project_to_plane) if args.project_to_plane else None
+    # traj_ref, traj_est, ref_name, est_name = common.load_trajectories(args)
+    # pose_relation = common.get_pose_relation(args)
+    # delta_unit = common.get_delta_unit(args)
+    # change_unit = metrics.Unit(args.change_unit) if args.change_unit else None
+    # plane = Plane(args.project_to_plane) if args.project_to_plane else None
 
-    traj_ref_full = None
-    if args.plot_full_ref:
-        import copy
-        traj_ref_full = copy.deepcopy(traj_ref)
+    # traj_ref_full = None
+    # if args.plot_full_ref:
+    #     import copy
+    #     traj_ref_full = copy.deepcopy(traj_ref)
 
-    # Downsample or filtering has to be done before synchronization.
-    # Otherwise filtering might mess up the sync.
-    common.downsample_or_filter(args, traj_ref, traj_est)
+    # # Downsample or filtering has to be done before synchronization.
+    # # Otherwise filtering might mess up the sync.
+    # common.downsample_or_filter(args, traj_ref, traj_est)
 
-    if isinstance(traj_ref, PoseTrajectory3D) and isinstance(
-            traj_est, PoseTrajectory3D):
+    # if isinstance(traj_ref, PoseTrajectory3D) and isinstance(
+    #         traj_est, PoseTrajectory3D):
+    #     logger.debug(SEP)
+    #     if args.t_start or args.t_end:
+    #         if args.t_start:
+    #             logger.info("Using time range start: {}s".format(args.t_start))
+    #         if args.t_end:
+    #             logger.info("Using time range end: {}s".format(args.t_end))
+    #         traj_ref.reduce_to_time_range(args.t_start, args.t_end)
+    #     logger.debug("Synchronizing trajectories...")
+    #     traj_ref, traj_est = sync.associate_trajectories(
+    #         traj_ref, traj_est, args.t_max_diff, args.t_offset,
+    #         first_name=ref_name, snd_name=est_name)
+
+    # result = rpe(traj_ref=traj_ref, traj_est=traj_est,
+    #              pose_relation=pose_relation, delta=args.delta,
+    #              delta_unit=delta_unit, rel_delta_tol=args.delta_tol,
+    #              all_pairs=args.all_pairs,
+    #              pairs_from_reference=args.pairs_from_reference,
+    #              align=args.align, correct_scale=args.correct_scale,
+    #              n_to_align=args.n_to_align, align_origin=args.align_origin,
+    #              ref_name=ref_name, est_name=est_name, change_unit=change_unit,
+    #              project_to_plane=plane)
+    # logger.info(result.pretty_str())
+
+    # if args.plot or args.save_plot or args.serialize_plot:
+    #     common.plot_result(args, result, traj_ref,
+    #                        result.trajectories[est_name],
+    #                        traj_ref_full=traj_ref_full)
+
+    # if args.save_results:
+    #     logger.debug(SEP)
+    #     if not SETTINGS.save_traj_in_zip:
+    #         del result.trajectories[ref_name]
+    #         del result.trajectories[est_name]
+    #     file_interface.save_res_file(args.save_results, result,
+    #                                  confirm_overwrite=not args.no_warnings)
+    # return
+
+
+    best_result = None
+    best_offset = 0
+    first_result = False
+    for t_offset in np.arange(-0.01, 0.01, 0.001):
+        log.configure_logging(args.verbose, args.silent, args.debug,
+                            local_logfile=args.logfile)
+        if args.debug:
+            from pprint import pformat
+            parser_str = pformat({arg: getattr(args, arg) for arg in vars(args)})
+            logger.debug("main_parser config:\n{}".format(parser_str))
         logger.debug(SEP)
-        if args.t_start or args.t_end:
-            if args.t_start:
-                logger.info("Using time range start: {}s".format(args.t_start))
-            if args.t_end:
-                logger.info("Using time range end: {}s".format(args.t_end))
-            traj_ref.reduce_to_time_range(args.t_start, args.t_end)
-        logger.debug("Synchronizing trajectories...")
-        traj_ref, traj_est = sync.associate_trajectories(
-            traj_ref, traj_est, args.t_max_diff, args.t_offset,
-            first_name=ref_name, snd_name=est_name)
 
-    result = rpe(traj_ref=traj_ref, traj_est=traj_est,
-                 pose_relation=pose_relation, delta=args.delta,
-                 delta_unit=delta_unit, rel_delta_tol=args.delta_tol,
-                 all_pairs=args.all_pairs,
-                 pairs_from_reference=args.pairs_from_reference,
-                 align=args.align, correct_scale=args.correct_scale,
-                 n_to_align=args.n_to_align, align_origin=args.align_origin,
-                 ref_name=ref_name, est_name=est_name, change_unit=change_unit,
-                 project_to_plane=plane)
+        traj_ref, traj_est, ref_name, est_name = common.load_trajectories(args)
+        pose_relation = common.get_pose_relation(args)
+        delta_unit = common.get_delta_unit(args)
+        change_unit = metrics.Unit(args.change_unit) if args.change_unit else None
+        plane = Plane(args.project_to_plane) if args.project_to_plane else None
 
-    if args.plot or args.save_plot or args.serialize_plot:
-        common.plot_result(args, result, traj_ref,
-                           result.trajectories[est_name],
-                           traj_ref_full=traj_ref_full)
+        traj_ref_full = None
+        if args.plot_full_ref:
+            import copy
+            traj_ref_full = copy.deepcopy(traj_ref)
 
-    if args.save_results:
-        logger.debug(SEP)
-        if not SETTINGS.save_traj_in_zip:
-            del result.trajectories[ref_name]
-            del result.trajectories[est_name]
-        file_interface.save_res_file(args.save_results, result,
-                                     confirm_overwrite=not args.no_warnings)
+        # Downsample or filtering has to be done before synchronization.
+        # Otherwise filtering might mess up the sync.
+        common.downsample_or_filter(args, traj_ref, traj_est)
+
+        if isinstance(traj_ref, PoseTrajectory3D) and isinstance(
+                traj_est, PoseTrajectory3D):
+            logger.debug(SEP)
+            if args.t_start or args.t_end:
+                if args.t_start:
+                    logger.info("Using time range start: {}s".format(args.t_start))
+                if args.t_end:
+                    logger.info("Using time range end: {}s".format(args.t_end))
+                traj_ref.reduce_to_time_range(args.t_start, args.t_end)
+            logger.debug("Synchronizing trajectories...")
+            traj_ref, traj_est = sync.associate_trajectories(
+                traj_ref, traj_est, args.t_max_diff, t_offset,
+                first_name=ref_name, snd_name=est_name)
+
+        result = rpe(traj_ref=traj_ref, traj_est=traj_est,
+                    pose_relation=pose_relation, delta=args.delta,
+                    delta_unit=delta_unit, rel_delta_tol=args.delta_tol,
+                    all_pairs=args.all_pairs,
+                    pairs_from_reference=args.pairs_from_reference,
+                    align=args.align, correct_scale=args.correct_scale,
+                    n_to_align=args.n_to_align, align_origin=args.align_origin,
+                    ref_name=ref_name, est_name=est_name, change_unit=change_unit,
+                    project_to_plane=plane)
+        
+        if not first_result:
+            first_result = True
+            best_result = result
+        
+        # print("mean val:", result.stats["mean"])
+        if (result.stats["mean"] < best_result.stats["mean"]):
+            best_result = result # result.stats["mean"]
+            best_offset = t_offset
+        print("curr_offset:", t_offset, "curr_result:", result.stats["mean"], "best_offset:", best_offset, "best_result:", best_result.stats["mean"])
+
+        if args.plot or args.save_plot or args.serialize_plot:
+            common.plot_result(args, result, traj_ref,
+                            result.trajectories[est_name],
+                            traj_ref_full=traj_ref_full)
+
+        if args.save_results:
+            logger.debug(SEP)
+            if not SETTINGS.save_traj_in_zip:
+                del result.trajectories[ref_name]
+                del result.trajectories[est_name]
+            file_interface.save_res_file(args.save_results, result,
+                                        confirm_overwrite=not args.no_warnings)
+    print("Final best_offset:", best_offset, "Final best_result:", best_result.stats["mean"])
+    logger.info(best_result.pretty_str())
+
 
 
 if __name__ == '__main__':

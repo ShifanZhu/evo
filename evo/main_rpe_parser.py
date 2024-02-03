@@ -38,8 +38,8 @@ def parser() -> argparse.ArgumentParser:
                            help="relative delta tolerance for all_pairs mode")
     algo_opts.add_argument(
         "-u", "--delta_unit", default="f",
-        help="unit of delta - `f` (frames), `d` (deg), `r` (rad), `m`(meters)",
-        choices=['f', 'd', 'r', 'm'])
+        help="unit of delta - `f` (frames), `d` (deg), `r` (rad), `m`(meters), `s`(seconds)",
+        choices=['f', 'd', 'r', 'm', 's'])
     algo_opts.add_argument(
         "--all_pairs",
         action="store_true",

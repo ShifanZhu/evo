@@ -107,6 +107,8 @@ def get_delta_unit(args: argparse.Namespace) -> Unit:
         delta_unit = Unit.radians
     elif args.delta_unit == "m":
         delta_unit = Unit.meters
+    elif args.delta_unit == "s":
+        delta_unit = Unit.seconds
     return delta_unit
 
 

@@ -30,6 +30,7 @@ import evo.core.transformations as tr
 import evo.core.geometry as geometry
 from evo.core import lie_algebra as lie
 from evo.core import filters
+from scipy.spatial.transform import Rotation as R
 
 logger = logging.getLogger(__name__)
 
@@ -229,6 +230,104 @@ class PosePath3D(object):
             del self._orientations_quat_wxyz
         self._projected = True
 
+
+
+    # def average_transforms(self, transforms):
+    #     # Separate rotations and translations
+    #     rotations = [R.from_matrix(t[:3, :3]) for t in transforms]
+    #     translations = [t[:3, 3] for t in transforms]
+
+    #     # Interpolate rotations using SLERP
+    #     mean_rotation = self.slerp_rotations(rotations)
+    #     # Average quaternions and translations
+    #     # mean_quat = R.from_quat(np.mean([r.as_quat() for r in rotations], axis=0)).as_matrix()
+    #     mean_translation = np.mean(translations, axis=0)
+
+    #     # Combine into a single transformation matrix
+    #     mean_transform = np.eye(4)
+    #     mean_transform[:3, :3] = mean_rotation.as_matrix()
+    #     mean_transform[:3, 3] = mean_translation
+
+    #     return mean_transform
+
+    def log_map_se3(self, T):
+        """Convert an SE3 transformation to its se3 representation using the log map."""
+        # Extract rotation matrix and translation vector
+        R_mat = T[:3, :3]
+        t_vec = T[:3, 3]
+        
+        # Convert rotation matrix to angle-axis form (rotation vector)
+        r = R.from_matrix(R_mat)
+        theta = np.linalg.norm(r.as_rotvec())
+        
+        # If there's a significant rotation, normalize the rotation vector
+        if theta > np.finfo(float).eps:
+            omega = r.as_rotvec() / theta
+            A = np.sin(theta) / theta
+            B = (1 - np.cos(theta)) / (theta**2)
+            C = (1 - A) / (theta**2)
+            V_inv = np.eye(3) - 0.5 * r.as_rotvec().reshape(3, 1) @ omega.reshape(1, 3) + (1 - A / (2 * B)) * (omega.reshape(3, 1) @ omega.reshape(1, 3))
+            v = V_inv @ t_vec
+            se3_vec = np.concatenate((theta * omega, v))
+        else:
+            # For small rotations, treat as identity rotation
+            se3_vec = np.concatenate((r.as_rotvec(), t_vec))
+        
+        return se3_vec
+
+    def exp_map_se3(self, se3_vec):
+        """Convert an se3 vector back to an SE3 transformation using the exp map."""
+        omega = se3_vec[:3]
+        v = se3_vec[3:]
+        theta = np.linalg.norm(omega)
+        
+        # If there's a significant rotation, compute the rotation matrix using Rodrigues' formula
+        if theta > np.finfo(float).eps:
+            omega_normalized = omega / theta
+            R_mat = R.from_rotvec(omega).as_matrix()
+            A = np.sin(theta) / theta
+            B = (1 - np.cos(theta)) / (theta**2)
+            V = np.eye(3) + B * np.cross(np.eye(3), omega_normalized) + (1 - A / B) * (omega_normalized.reshape(3, 1) @ omega_normalized.reshape(1, 3))
+            t_vec = V @ v
+        else:
+            # For small rotations, treat as identity rotation
+            R_mat = np.eye(3)
+            t_vec = v
+        
+        # Combine rotation and translation into SE3 transformation
+        T = np.eye(4)
+        T[:3, :3] = R_mat
+        T[:3, 3] = t_vec
+        
+        return T
+
+    def average_se3_transforms(self, transforms):
+        se3_vectors = np.array([self.log_map_se3(T) for T in transforms])
+        mean_se3_vector = np.mean(se3_vectors, axis=0)
+        mean_transform = self.exp_map_se3(mean_se3_vector)
+        return mean_transform
+
+
+    def compute_relative_transforms(self, poses1, poses2, fraction=0.5):
+        # Determine the number of poses to use based on the fraction
+        num_poses1 = int(len(poses1) * fraction)
+        # num_poses2 = int(len(poses2) * fraction)
+        # print("num_pose", len(poses1), len(poses2))
+        # print("size1:", len(poses1), len(poses2))
+
+        # for i in range(num_poses1):
+
+        relative_transforms = []
+
+        for i in range(num_poses1):
+            traj_origin = poses1[i]
+            traj_ref_origin = poses2[i]
+            to_ref_origin = np.dot(lie.se3_inverse(traj_origin), traj_ref_origin)
+            relative_transforms.append(to_ref_origin)
+
+        return self.average_se3_transforms(relative_transforms)
+
+
     def align(self, traj_ref: 'PosePath3D', correct_scale: bool = False,
               correct_only_scale: bool = False,
               n: float = -1.0) -> geometry.UmeyamaResult:
@@ -241,7 +340,6 @@ class PosePath3D(object):
         :return: the result parameters of the Umeyama algorithm
         """
         with_scale = correct_scale or correct_only_scale
-        print("shape:", traj_ref.positions_xyz.shape)
         align_number = int(n * traj_ref.positions_xyz.shape[0])
         if correct_only_scale:
             logger.debug("Correcting scale...")
@@ -262,7 +360,7 @@ class PosePath3D(object):
                          "\nTranslation of alignment:\n{}".format(r_a, t_a))
         logger.debug("Scale correction: {}".format(s))
 
-        print("r t", r_a, t_a)
+        # print("r t", r_a, t_a)
         if correct_only_scale:
             self.scale(s)
         elif correct_scale:
@@ -270,6 +368,19 @@ class PosePath3D(object):
             self.transform(lie.se3(r_a, t_a))
         else:
             self.transform(lie.se3(r_a, t_a))
+            
+            # traj_origin0 = self.poses_se3[0]
+            # traj_ref_origin0 = traj_ref.poses_se3[0]
+            # to_ref_origin0 = np.dot(lie.se3_inverse(traj_origin0), traj_ref_origin0)
+            # # to_ref_origin[0, 3] = 0
+            # # to_ref_origin[1, 3] = 0
+            # # to_ref_origin[2, 3] = 0
+            # to_ref_origin_so3 = lie.so3_from_se3(to_ref_origin0)
+            # to_ref_origin_se3 = lie.se3(to_ref_origin_so3)
+            # self.transform(to_ref_origin_se3, True)
+
+            avg_transform = self.compute_relative_transforms(self.poses_se3, traj_ref.poses_se3)
+            self.transform(avg_transform, True)
 
         return r_a, t_a, s
     
@@ -332,6 +443,12 @@ class PosePath3D(object):
         logger.debug(
             "Origin alignment transformation:\n{}".format(to_ref_origin))
         self.transform(to_ref_origin)
+
+        to_ref_origin0 = np.dot(lie.se3_inverse(traj_origin), traj_ref_origin)
+        to_ref_origin_so3 = lie.so3_from_se3(to_ref_origin0)
+        to_ref_origin_se3 = lie.se3(to_ref_origin_so3)
+        self.transform(to_ref_origin_se3, True)
+    
         return to_ref_origin
 
     def reduce_to_ids(

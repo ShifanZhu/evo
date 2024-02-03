@@ -267,14 +267,42 @@ class RPE(PE):
             raise MetricsException(
                 "please provide data tuple as: (traj_ref, traj_est)")
         traj_ref, traj_est = data
+        print("traj_est", traj_est)
         if traj_ref.num_poses != traj_est.num_poses:
             raise MetricsException(
                 "trajectories must have same number of poses")
 
-        id_pairs = id_pairs_from_delta(
+        id_pairs = id_pairs_from_delta((traj_ref.timestamps
+             if self.pairs_from_reference else traj_est.timestamps),
             (traj_ref.poses_se3
              if self.pairs_from_reference else traj_est.poses_se3), self.delta,
             self.delta_unit, self.rel_delta_tol, all_pairs=self.all_pairs)
+        # print("id_pairs", id_pairs)
+        # for i, j in id_pairs:
+        #     print("----------------")
+        #     print("i j", i, j)
+        #     print("traj_ref time i", traj_ref.timestamps[i])
+        #     print("traj_ref time j", traj_ref.timestamps[j])
+        #     print("traj_est time i", traj_est.timestamps[i])
+        #     print("traj_est time j", traj_est.timestamps[j])
+        #     print("traj_ref pose i", traj_ref.poses_se3[i])
+        #     print("traj_ref pose j", traj_ref.poses_se3[j])
+        #     print("traj_est pose i", traj_est.poses_se3[i])
+        #     print("traj_est pose j", traj_est.poses_se3[j])
+        #     Q_rel = lie.relative_se3(traj_ref.poses_se3[i], traj_ref.poses_se3[j])
+        #     P_rel = lie.relative_se3(traj_est.poses_se3[i], traj_est.poses_se3[j])
+        #     print("Q_rel", Q_rel)
+        #     print("P_rel", P_rel)
+        #     print("Q_norm", np.linalg.norm(Q_rel[:3, 3]))
+        #     print("P_norm", np.linalg.norm(P_rel[:3, 3]))
+        #     print("Delta Q P", np.linalg.norm(Q_rel[:3, 3]) - np.linalg.norm(P_rel[:3, 3]))
+            
+        #     E = self.rpe_base(traj_ref.poses_se3[i], traj_ref.poses_se3[j],
+        #                       traj_est.poses_se3[i], traj_est.poses_se3[j])
+        #     print("E", E)
+        #     print("error rot ", np.linalg.norm(lie.so3_from_se3(E) - np.eye(3)))
+        #     print("error tran ", np.linalg.norm(E[:3, 3]))
+        # print("size:", len(traj_ref.poses_se3), len(traj_est.poses_se3))
 
         # Store flat id list e.g. for plotting.
         self.delta_ids = [j for i, j in id_pairs]
@@ -435,7 +463,8 @@ class APE(PE):
             raise MetricsException("unsupported pose_relation")
 
 
-def id_pairs_from_delta(poses: typing.Sequence[np.ndarray], delta: float,
+def id_pairs_from_delta(timestamps: typing.Sequence[np.ndarray], 
+                        poses: typing.Sequence[np.ndarray], delta: float,
                         delta_unit: Unit, rel_tol: float = 0.1,
                         all_pairs: bool = False) -> filters.IdPairs:
     """
@@ -448,6 +477,7 @@ def id_pairs_from_delta(poses: typing.Sequence[np.ndarray], delta: float,
     :param all_pairs: use all pairs instead of consecutive pairs
     :return: list of index tuples (pairs)
     """
+    # print("timestamps", timestamps)
     if delta_unit == Unit.frames:
         id_pairs = filters.filter_pairs_by_index(poses, int(delta), all_pairs)
     elif delta_unit == Unit.meters:
@@ -457,9 +487,13 @@ def id_pairs_from_delta(poses: typing.Sequence[np.ndarray], delta: float,
         use_degrees = (delta_unit == Unit.degrees)
         id_pairs = filters.filter_pairs_by_angle(poses, delta, delta * rel_tol,
                                                  use_degrees, all_pairs)
+    elif delta_unit == Unit.seconds:
+        id_pairs = filters.filter_pairs_by_time(timestamps, poses, delta, delta * rel_tol,
+                                                all_pairs)
     else:
         raise filters.FilterException(
             "unsupported delta unit: {}".format(delta_unit))
+    # print("id_pairs", id_pairs)
 
     if len(id_pairs) == 0:
         raise filters.FilterException(

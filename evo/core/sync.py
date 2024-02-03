@@ -83,6 +83,7 @@ def associate_trajectories(
         or not isinstance(traj_2, PoseTrajectory3D):
         raise SyncException("trajectories must be PoseTrajectory3D objects")
 
+    # print("len: ", len(traj_2.timestamps), len(traj_2.timestamps))
     snd_longer = len(traj_2.timestamps) > len(traj_1.timestamps)
     traj_long = copy.deepcopy(traj_2) if snd_longer else copy.deepcopy(traj_1)
     traj_short = copy.deepcopy(traj_1) if snd_longer else copy.deepcopy(traj_2)

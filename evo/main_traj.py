@@ -241,16 +241,20 @@ def run(args):
     synced = (args.subcommand == "kitti" and ref_traj) or any(
         (args.sync, args.align, args.correct_scale, args.align_origin))
     synced_refs = {}
+    # print("poses len1: ", len(trajectories["VINS-Fusion.txt"].poses_se3))
     ref_traj.align_tran(
                     ref_traj, correct_scale=args.correct_scale,
                     correct_only_scale=args.correct_scale and not args.align,
                     n=args.n_to_align)
+    # print("poses len2: ", len(trajectories["VINS-Fusion.txt"].poses_se3))
     if synced:
         from evo.core import sync
         if not args.ref:
             logger.debug(SEP)
             die("Can't align or sync without a reference! (--ref)  *grunt*")
+            # print("poses len3: ", len(trajectories["VINS-Fusion.txt"].poses_se3))
         for name, traj in trajectories.items():
+            # print("poses len4: ", len(trajectories["VINS-Fusion.txt"].poses_se3))
             if args.subcommand == "kitti":
                 ref_traj_tmp = ref_traj
             else:
@@ -258,9 +262,12 @@ def run(args):
                 ref_traj_tmp, trajectories[name] = sync.associate_trajectories(
                     ref_traj, traj, max_diff=args.t_max_diff,
                     first_name="reference", snd_name=name)
+            # print("poses len5: ", len(trajectories["VINS-Fusion.txt"].poses_se3))
             if args.align or args.correct_scale:
+                # print("poses len6: ", len(trajectories["VINS-Fusion.txt"].poses_se3))
                 logger.debug(SEP)
                 logger.debug("Aligning {} to reference.".format(name))
+                # print("poses len: ", len(trajectories[name].poses_se3), name)
                 trajectories[name].align(
                     ref_traj_tmp, correct_scale=args.correct_scale,
                     correct_only_scale=args.correct_scale and not args.align,
