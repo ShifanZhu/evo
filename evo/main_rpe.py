@@ -57,6 +57,8 @@ def rpe(traj_ref: PosePath3D, traj_est: PosePath3D,
     alignment_transformation = None
     if align or correct_scale:
         logger.debug(SEP)
+        alignment_transformation = lie_algebra.sim3(
+            *traj_est.align(traj_ref, correct_scale, only_scale, n=n_to_align))
         # Translate aligned trajectory to Zero position
         traj_ref.align_tran(
                     traj_ref, correct_scale=correct_scale,
@@ -66,8 +68,6 @@ def rpe(traj_ref: PosePath3D, traj_est: PosePath3D,
                         traj_ref, correct_scale=correct_scale,
                         correct_only_scale=correct_scale and not align,
                         n=n_to_align)
-        alignment_transformation = lie_algebra.sim3(
-            *traj_est.align(traj_ref, correct_scale, only_scale, n=n_to_align))
         
     elif align_origin:
         logger.debug(SEP)
@@ -217,7 +217,7 @@ def run(args: argparse.Namespace) -> None:
     best_result = None
     best_offset = 0
     first_result = False
-    for t_offset in np.arange(-0.08, 0.08, 0.002):
+    for t_offset in np.arange(-0.01, 0.01, 0.002):
         log.configure_logging(args.verbose, args.silent, args.debug,
                             local_logfile=args.logfile)
         if args.debug:

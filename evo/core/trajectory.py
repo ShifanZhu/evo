@@ -377,12 +377,12 @@ class PosePath3D(object):
             # to_ref_origin[2, 3] = 0
             to_ref_origin_so3 = lie.so3_from_se3(to_ref_origin0)
             to_ref_origin_se3 = lie.se3(to_ref_origin_so3)
-            # self.transform(to_ref_origin_se3, True)
+            self.transform(to_ref_origin_se3, True)
 
-            avg_transform = self.compute_relative_transforms(self.poses_se3, traj_ref.poses_se3)
-            # print("to_ref_origin_se3", to_ref_origin_se3)
-            # print("avg_transform", avg_transform)
-            self.transform(avg_transform, True)
+            # avg_transform = self.compute_relative_transforms(self.poses_se3, traj_ref.poses_se3)
+            # # print("to_ref_origin_se3", to_ref_origin_se3)
+            # # print("avg_transform", avg_transform)
+            # self.transform(avg_transform, True)
 
         return r_a, t_a, s
     

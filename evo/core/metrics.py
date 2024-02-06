@@ -252,6 +252,13 @@ class RPE(PE):
         :return: the RPE matrix E_i in SE(3)
         """
         Q_rel = lie.relative_se3(Q_i, Q_i_delta)
+        
+        to_ref_origin0 = np.dot(lie.se3_inverse(P_i), Q_i)
+        to_ref_origin_so3 = lie.so3_from_se3(to_ref_origin0)
+        to_ref_origin_se3 = lie.se3(to_ref_origin_so3)
+        P_i = np.dot(P_i, to_ref_origin_se3)
+        P_i_delta = np.dot(P_i_delta, to_ref_origin_se3)
+        
         P_rel = lie.relative_se3(P_i, P_i_delta)
         E_i = lie.relative_se3(Q_rel, P_rel)
         return E_i
@@ -277,13 +284,22 @@ class RPE(PE):
             (traj_ref.poses_se3
              if self.pairs_from_reference else traj_est.poses_se3), self.delta,
             self.delta_unit, self.rel_delta_tol, all_pairs=self.all_pairs)
-        # print("id_pairs", id_pairs)
+        # # # print("id_pairs", id_pairs)
+        # np.set_printoptions(suppress=True)
         # for i, j in id_pairs:
         #     Q_rel = lie.relative_se3(traj_ref.poses_se3[i], traj_ref.poses_se3[j])
-        #     P_rel = lie.relative_se3(traj_est.poses_se3[i], traj_est.poses_se3[j])
+            
+        #     to_ref_origin0 = np.dot(lie.se3_inverse(traj_est.poses_se3[i]), traj_ref.poses_se3[i])
+        #     # to_ref_origin_so3 = lie.so3_from_se3(to_ref_origin0)
+        #     # to_ref_origin_se3 = lie.se3(to_ref_origin_so3)
+        #     P_i = np.dot(traj_est.poses_se3[i], to_ref_origin0)
+        #     P_i_delta = np.dot(traj_est.poses_se3[j], to_ref_origin0)
+        
+        #     P_rel = lie.relative_se3(P_i, P_i_delta)
+            
         #     E = self.rpe_base(traj_ref.poses_se3[i], traj_ref.poses_se3[j],
         #                       traj_est.poses_se3[i], traj_est.poses_se3[j])
-        #     if (np.linalg.norm(E[:3, 3]) > 0.08):
+        #     if (np.linalg.norm(E[:3, 3]) > 0.518):
         #         print("----------------")
         #         print("i j", i, j)
         #         print("traj_ref time i", traj_ref.timestamps[i])
@@ -292,8 +308,8 @@ class RPE(PE):
         #         print("traj_est time j", traj_est.timestamps[j])
         #         print("traj_ref pose i", traj_ref.poses_se3[i])
         #         print("traj_ref pose j", traj_ref.poses_se3[j])
-        #         print("traj_est pose i", traj_est.poses_se3[i])
-        #         print("traj_est pose j", traj_est.poses_se3[j])
+        #         print("traj_est pose i", P_i)
+        #         print("traj_est pose j", P_i_delta)
         #         print("Q_rel", Q_rel)
         #         print("P_rel", P_rel)
         #         print("Q_norm", np.linalg.norm(Q_rel[:3, 3]))
