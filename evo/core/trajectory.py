@@ -308,7 +308,7 @@ class PosePath3D(object):
         return mean_transform
 
 
-    def compute_relative_transforms(self, poses1, poses2, fraction=0.5):
+    def compute_relative_transforms(self, poses1, poses2, fraction=0.6):
         # Determine the number of poses to use based on the fraction
         num_poses1 = int(len(poses1) * fraction)
         # num_poses2 = int(len(poses2) * fraction)
@@ -318,8 +318,8 @@ class PosePath3D(object):
         # for i in range(num_poses1):
 
         relative_transforms = []
-
-        for i in range(num_poses1):
+        
+        for i in np.arange(0, 1, 1):
             traj_origin = poses1[i]
             traj_ref_origin = poses2[i]
             to_ref_origin = np.dot(lie.se3_inverse(traj_origin), traj_ref_origin)
@@ -369,17 +369,19 @@ class PosePath3D(object):
         else:
             self.transform(lie.se3(r_a, t_a))
             
-            # traj_origin0 = self.poses_se3[0]
-            # traj_ref_origin0 = traj_ref.poses_se3[0]
-            # to_ref_origin0 = np.dot(lie.se3_inverse(traj_origin0), traj_ref_origin0)
-            # # to_ref_origin[0, 3] = 0
-            # # to_ref_origin[1, 3] = 0
-            # # to_ref_origin[2, 3] = 0
-            # to_ref_origin_so3 = lie.so3_from_se3(to_ref_origin0)
-            # to_ref_origin_se3 = lie.se3(to_ref_origin_so3)
+            traj_origin0 = self.poses_se3[0]
+            traj_ref_origin0 = traj_ref.poses_se3[0]
+            to_ref_origin0 = np.dot(lie.se3_inverse(traj_origin0), traj_ref_origin0)
+            # to_ref_origin[0, 3] = 0
+            # to_ref_origin[1, 3] = 0
+            # to_ref_origin[2, 3] = 0
+            to_ref_origin_so3 = lie.so3_from_se3(to_ref_origin0)
+            to_ref_origin_se3 = lie.se3(to_ref_origin_so3)
             # self.transform(to_ref_origin_se3, True)
 
             avg_transform = self.compute_relative_transforms(self.poses_se3, traj_ref.poses_se3)
+            # print("to_ref_origin_se3", to_ref_origin_se3)
+            # print("avg_transform", avg_transform)
             self.transform(avg_transform, True)
 
         return r_a, t_a, s
