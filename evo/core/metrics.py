@@ -253,11 +253,11 @@ class RPE(PE):
         """
         Q_rel = lie.relative_se3(Q_i, Q_i_delta)
         
-        to_ref_origin0 = np.dot(lie.se3_inverse(P_i), Q_i)
-        to_ref_origin_so3 = lie.so3_from_se3(to_ref_origin0)
-        to_ref_origin_se3 = lie.se3(to_ref_origin_so3)
-        P_i = np.dot(P_i, to_ref_origin_se3)
-        P_i_delta = np.dot(P_i_delta, to_ref_origin_se3)
+        # to_ref_origin0 = np.dot(lie.se3_inverse(P_i), Q_i)
+        # to_ref_origin_so3 = lie.so3_from_se3(to_ref_origin0)
+        # to_ref_origin_se3 = lie.se3(to_ref_origin_so3)
+        # P_i = np.dot(P_i, to_ref_origin_se3)
+        # P_i_delta = np.dot(P_i_delta, to_ref_origin_se3)
         
         P_rel = lie.relative_se3(P_i, P_i_delta)
         E_i = lie.relative_se3(Q_rel, P_rel)

@@ -402,8 +402,8 @@ def traj(ax: Axes, plot_mode: PlotMode, traj: trajectory.PosePath3D,
     if SETTINGS.plot_xyz_realistic:
         set_aspect_equal(ax)
     if label and SETTINGS.plot_show_legend:
-        # ax.legend(frameon=True)
-        pass
+        ax.legend(frameon=True)
+        # pass
     if plot_start_end_markers:
         add_start_end_markers(ax, plot_mode, traj, start_color=color,
                               end_color=color, alpha=alpha)
@@ -485,8 +485,8 @@ def traj_colormap(ax: Axes, traj: trajectory.PosePath3D, array: ListOrArray,
         "{0:0.3f}".format(max_map)
     ])
     if title:
-        # ax.legend(frameon=True)
-        pass
+        ax.legend(frameon=True)
+        # pass
         ax.set_title(title)
     if plot_start_end_markers:
         add_start_end_markers(ax, plot_mode, traj, start_color=colors[0],
