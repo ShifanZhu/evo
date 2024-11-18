@@ -241,11 +241,79 @@ def run(args):
     synced = (args.subcommand == "kitti" and ref_traj) or any(
         (args.sync, args.align, args.correct_scale, args.align_origin))
     synced_refs = {}
-    # print("poses len1: ", len(trajectories["VINS-Fusion.txt"].poses_se3))
+
+    # t_a = ref_traj.positions_xyz[0]
+    # # print("poses len1: ", len(trajectories["VINS-Fusion.txt"].poses_se3))
     ref_traj.align_tran(
                     ref_traj, correct_scale=args.correct_scale,
                     correct_only_scale=args.correct_scale and not args.align,
                     n=args.n_to_align)
+
+
+    # # Below is for saving poses by applying a transformation (enerf project)
+    # # Define an angle of rotation (45 degrees converted to radians)
+    # phi = np.radians(75)    # Z-axis rotation (yaw)
+    # theta = np.radians(-45)  # Y-axis rotation (pitch)
+    # psi = np.radians(50)    # X-axis rotation (roll)
+
+    # # Rotation matrix around Z-axis
+    # R_z = np.array([
+    #     [np.cos(phi), -np.sin(phi), 0],
+    #     [np.sin(phi), np.cos(phi), 0],
+    #     [0, 0, 1]
+    # ])
+
+    # # Rotation matrix around Y-axis
+    # R_y = np.array([
+    #     [np.cos(theta), 0, np.sin(theta)],
+    #     [0, 1, 0],
+    #     [-np.sin(theta), 0, np.cos(theta)]
+    # ])
+
+    # # Rotation matrix around X-axis
+    # R_x = np.array([
+    #     [1, 0, 0],
+    #     [0, np.cos(psi), -np.sin(psi)],
+    #     [0, np.sin(psi), np.cos(psi)]
+    # ])
+
+    # # Combined rotation matrix R = R_z * R_y * R_x
+    # rotation_matrix = np.dot(R_z, np.dot(R_y, R_x))
+    
+    # print("position xyz ", ref_traj.positions_xyz[0])
+    # print("orientation wxyz ", ref_traj.orientations_quat_wxyz[0])
+    # # Apply the rotation matrix
+    # # r_a = rotation_matrix
+    # t_a = [0, 0, 0]
+    # r_a = np.identity(3)
+    # # t_a = [2.5, 1.6, -3.4]
+    # ref_traj.transform(lie.se3(r_a, t_a), right_mul = False)
+    
+    # # for p in range(len(ref_traj.poses_se3)):
+    # # positions_xyz, orientations_quat_wxyz = ref_traj.se3_poses_to_xyz_quat_wxyz(ref_traj.poses_se3)
+    # print("position xyz ", ref_traj.positions_xyz[0])
+    # print("orientation wxyz ", ref_traj.orientations_quat_wxyz[0])
+
+    # with open("/home/zh/data/tum/vie/test/mocap_data_scale10_new.txt", mode='w', newline='') as file:
+    #     # Write the header
+        
+    #     # Write the data rows
+    #     for position, orientation, time in zip(ref_traj.positions_xyz, ref_traj.orientations_quat_wxyz, ref_traj.timestamps):
+    #         # Begin with the time stamp
+    #         row = f"{time}"
+    #         # Add each position component
+    #         for pos_component in position:
+    #             row += f" {pos_component}"
+    #         qw, qx, qy, qz = orientation  # Unpack in wxyz order
+    #         reordered_orientation = (qx, qy, qz, qw)  # Reorder to xyzw
+
+    #         # Add each orientation component
+    #         for orient_component in reordered_orientation:
+    #             row += f" {orient_component}"
+    #         # Finish the line
+    #         row += "\n"
+    #         file.write(row)
+        
     # print("poses len2: ", len(trajectories["VINS-Fusion.txt"].poses_se3))
     if synced:
         from evo.core import sync
@@ -272,10 +340,29 @@ def run(args):
                     ref_traj_tmp, correct_scale=args.correct_scale,
                     correct_only_scale=args.correct_scale and not args.align,
                     n=args.n_to_align)
-                trajectories[name].align_tran(
-                    ref_traj_tmp, correct_scale=args.correct_scale,
-                    correct_only_scale=args.correct_scale and not args.align,
-                    n=args.n_to_align)
+                # # trajectories[name].align_tran(
+                # #     ref_traj_tmp, correct_scale=args.correct_scale,
+                # #     correct_only_scale=args.correct_scale and not args.align,
+                # #     n=args.n_to_align)
+                # with open("/home/zh/data/tum/vie/rosbag_to_h5/evo_colmap/evo_align_to_colmap.txt", mode='w', newline='') as file:
+                #     # Write the header
+                    
+                #     # Write the data rows
+                #     for position, orientation, time in zip(trajectories[name].positions_xyz, trajectories[name].orientations_quat_wxyz, trajectories[name].timestamps):
+                #         # Begin with the time stamp
+                #         row = f"{time}"
+                #         # Add each position component
+                #         for pos_component in position:
+                #             row += f" {pos_component}"
+                #         qw, qx, qy, qz = -orientation  # Unpack in wxyz order
+                #         reordered_orientation = (qx, qy, qz, qw)  # Reorder to xyzw
+
+                #         # Add each orientation component
+                #         for orient_component in reordered_orientation:
+                #             row += f" {orient_component}"
+                #         # Finish the line
+                #         row += "\n"
+                #         file.write(row)
             if args.align_origin:
                 logger.debug(SEP)
                 logger.debug("Aligning {}'s origin to reference.".format(name))

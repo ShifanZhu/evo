@@ -24,6 +24,7 @@ import typing
 from enum import Enum, unique
 
 import numpy as np
+import math
 
 from evo import EvoException
 import evo.core.transformations as tr
@@ -125,10 +126,141 @@ class PosePath3D(object):
                      for p in self._poses_se3])
         return self._orientations_quat_wxyz
 
+
+    def to_euler_angle(self, rot):
+        """
+        Convert a quaternion into Euler angles (roll, pitch, yaw).
+        The input quaternion is assumed to be in the form [w, x, y, z].
+
+        Args:
+            q (list or np.array): Quaternion [w, x, y, z]
+
+        Returns:
+            tuple: Euler angles (roll, pitch, yaw) in degrees
+        """
+        q = R.from_matrix(rot[:3, :3]).as_quat()
+        x, y, z, w = q
+        # return x, y, z
+
+        # Roll (x-axis rotation)
+        sinr_cosp = 2.0 * (w * x + y * z)
+        cosr_cosp = 1.0 - 2.0 * (x * x + y * y)
+        roll = math.atan2(sinr_cosp, cosr_cosp) * 180 / math.pi
+
+        # Pitch (y-axis rotation)
+        sinp = 2.0 * (w * y - z * x)
+        if abs(sinp) >= 1:
+            pitch = math.copysign(math.pi / 2, sinp) * 180 / math.pi  # Use 90 degrees if out of range
+        else:
+            pitch = math.asin(sinp) * 180 / math.pi
+
+        # Yaw (z-axis rotation)
+        siny_cosp = 2.0 * (w * z + x * y)
+        cosy_cosp = 1.0 - 2.0 * (y * y + z * z)
+        yaw = math.atan2(siny_cosp, cosy_cosp) * 180 / math.pi
+        
+        # Adjust yaw to be in [0, 360) degrees
+        if yaw < 0:
+            yaw += 360.0
+
+        return roll*math.pi/180, pitch*math.pi/180, yaw*math.pi/180
+    
+    
+    def to_euler_angle_with_constraints(self, rot):
+        """
+        Convert a quaternion into Euler angles (roll, pitch, yaw).
+        The input quaternion is assumed to be in the form [w, x, y, z].
+
+        Args:
+            rot (np.array): 4x4 rotation matrix
+
+        Returns:
+            tuple: Euler angles (roll, pitch, yaw) in radians
+        """
+        q = R.from_matrix(rot[:3, :3]).as_quat()
+        x, y, z, w = q
+
+        # Roll (x-axis rotation)
+        sinr_cosp = 2.0 * (w * x + y * z)
+        cosr_cosp = 1.0 - 2.0 * (x * x + y * y)
+        roll = math.atan2(sinr_cosp, cosr_cosp)
+
+        # Pitch (y-axis rotation) - constrained within -90 <= pitch <= 90
+        sinp = 2.0 * (w * y - z * x)
+        pitch = math.asin(max(-1.0, min(1.0, sinp)))  # Ensuring asin input is within valid range
+
+        # Yaw (z-axis rotation)
+        siny_cosp = 2.0 * (w * z + x * y)
+        cosy_cosp = 1.0 - 2.0 * (y * y + z * z)
+        yaw = math.atan2(siny_cosp, cosy_cosp)
+
+        # Convert the angles from radians to degrees
+        roll_deg = math.degrees(roll)
+        pitch_deg = math.degrees(pitch)
+        yaw_deg = math.degrees(yaw)
+
+        # Apply constraints
+        # Roll: Ensure it is within -180 < roll <= 180
+        if roll_deg > 180:
+            roll_deg -= 360
+        elif roll_deg <= -180:
+            roll_deg += 360
+
+        # Yaw: Ensure it is within -180 < yaw <= 180
+        if yaw_deg > 180:
+            yaw_deg -= 360
+        elif yaw_deg <= -180:
+            yaw_deg += 360
+
+        return roll_deg*math.pi/180, pitch_deg*math.pi/180, yaw_deg*math.pi/180
+
+    
+    def to_euler_angle_without_constraint(self, rot):
+        """
+        Convert a quaternion into Euler angles (roll, pitch, yaw).
+        The input quaternion is assumed to be in the form [w, x, y, z].
+
+        Args:
+            rot (np.array): 4x4 rotation matrix
+
+        Returns:
+            tuple: Euler angles (roll, pitch, yaw) in radians
+        """
+        q = R.from_matrix(rot[:3, :3]).as_quat()
+        x, y, z, w = q
+
+        # Roll (x-axis rotation)
+        sinr_cosp = 2.0 * (w * x + y * z)
+        cosr_cosp = 1.0 - 2.0 * (x * x + y * y)
+        roll = math.atan2(sinr_cosp, cosr_cosp)
+        # Pitch (y-axis rotation) - without constraints
+        pitch = math.atan2(2.0 * (w * y - z * x), 1.0 - 2.0 * (y * y + x * x))
+
+        # Yaw (z-axis rotation)
+        siny_cosp = 2.0 * (w * z + x * y)
+        cosy_cosp = 1.0 - 2.0 * (y * y + z * z)
+        yaw = math.atan2(siny_cosp, cosy_cosp)
+
+        # Adjust yaw to be in [0, 2*pi) radians
+        if yaw < 0:
+            yaw += 2 * math.pi
+
+        return roll, pitch, yaw
+
     def get_orientations_euler(self, axes="sxyz") -> np.ndarray:
         if hasattr(self, "_poses_se3"):
             return np.array(
                 [tr.euler_from_matrix(p, axes=axes) for p in self._poses_se3])
+            # print("new method")
+            # return np.array([
+            #     R.from_matrix(q[:3, :3]).as_euler("xyz", degrees=False)
+            #     for q in self._poses_se3
+            # ])
+            # return np.array([
+            #     self.to_euler_angle(q)
+            #     # self.to_euler_angle_with_constraints(q)
+            #     for q in self._poses_se3
+            # ])
         assert hasattr(self, "_orientations_quat_wxyz")
         return np.array([
             tr.euler_from_quaternion(q, axes=axes)
@@ -366,6 +498,12 @@ class PosePath3D(object):
         elif correct_scale:
             self.scale(s)
             self.transform(lie.se3(r_a, t_a))
+            traj_origin0 = self.poses_se3[0]
+            traj_ref_origin0 = traj_ref.poses_se3[0]
+            to_ref_origin0 = np.dot(lie.se3_inverse(traj_origin0), traj_ref_origin0)
+            to_ref_origin_so3 = lie.so3_from_se3(to_ref_origin0)
+            to_ref_origin_se3 = lie.se3(to_ref_origin_so3)
+            self.transform(to_ref_origin_se3, True)
         else:
             self.transform(lie.se3(r_a, t_a))
             
