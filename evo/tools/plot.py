@@ -55,6 +55,10 @@ logger = logging.getLogger(__name__)
 ListOrArray = typing.Union[typing.Sequence[float], np.ndarray]
 
 
+# Modification for EBARF begin
+block_discontinuity = True
+# Modification for EBARF end
+
 def apply_settings(settings: SettingsContainer = SETTINGS):
     """
     Configure matplotlib and seaborn according to package settings.
@@ -380,6 +384,7 @@ def add_start_end_markers(ax: Axes, plot_mode: PlotMode,
                label=end_label)  # type: ignore[misc]
 
 
+from matplotlib.pyplot import MultipleLocator
 def traj(ax: Axes, plot_mode: PlotMode, traj: trajectory.PosePath3D,
          style: str = '-', color='black', label: str = "", alpha: float = 1.0,
          plot_start_end_markers: bool = False) -> None:
@@ -398,19 +403,93 @@ def traj(ax: Axes, plot_mode: PlotMode, traj: trajectory.PosePath3D,
     x_idx, y_idx, z_idx = plot_mode_to_idx(plot_mode)
     x = traj.positions_xyz[:, x_idx]
     y = traj.positions_xyz[:, y_idx]
+    
+    # Modification for EBARF begin
+
+    if (label == "Noised-GT"):
+      alpha = 0.2
+    
+    # ax.axis('off')
     if plot_mode == PlotMode.xyz:
         z = traj.positions_xyz[:, z_idx]
-        ax.plot(x, y, z, style, color=color, label=label, alpha=alpha)
+
+        ax.xaxis.pane.fill = False
+        ax.yaxis.pane.fill = False
+        ax.zaxis.pane.fill = False
+        ax.xaxis.pane.set_edgecolor(color='w')
+        ax.yaxis.pane.set_edgecolor(color='w')
+        ax.zaxis.pane.set_edgecolor(color='w')
+
+        # original version
+        if not block_discontinuity:
+            ax.plot(x, y, z, style, color=color, label=label, alpha=alpha)
+        else:
+            # block discontinuity version
+            last_idx = 0
+            for j in range(1, len(x)):
+                # If the timestamp gap is larger than 0.4 seconds, plot the segment and start a new one
+                if traj.timestamps[j] - traj.timestamps[j - 1] > 0.4:
+                    # print("j: ", j, "time: ", traj.timestamps[j])
+                    ax.plot(x[last_idx:j], y[last_idx:j], z[last_idx:j], style, color=color, label=label if last_idx == 0 else None, alpha=alpha)
+                    last_idx = j
+            # Plot the last segment
+            ax.plot(x[last_idx:], y[last_idx:], z[last_idx:], style, color=color, label=label if last_idx == 0 else None, alpha=alpha)
+
     else:
-        ax.plot(x, y, style, color=color, label=label, alpha=alpha)
+        # original version
+        if not block_discontinuity:
+            ax.plot(x, y, style, color=color, label=label, alpha=alpha)
+        else:
+            # block discontinuity version
+            last_idx = 0
+            for j in range(1, len(x)):
+                # If the timestamp gap is larger than 0.4 seconds, plot the segment and start a new one
+                if traj.timestamps[j] - traj.timestamps[j - 1] > 0.4:
+                    ax.plot(x[last_idx:j], y[last_idx:j], style, color=color, label=label if last_idx == 0 else None, alpha=alpha)
+                    last_idx = j
+            # Plot the last segment
+            ax.set_aspect('equal')
+            ax.plot(x[last_idx:], y[last_idx:], style, color=color, label=label if last_idx == 0 else None, alpha=alpha)
     if SETTINGS.plot_xyz_realistic:
         set_aspect_equal(ax)
     if label and SETTINGS.plot_show_legend:
         ax.legend(frameon=True)
+        ax.grid(color='0.94', linestyle='-', linewidth=1)
         # pass
     if plot_start_end_markers:
         add_start_end_markers(ax, plot_mode, traj, start_color=color,
                               end_color=color, alpha=alpha)
+    
+    
+    # Remove the tick labels from the x, y, and z axes
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
+    ax.set_zticklabels([])
+    ax.set_xlabel('')
+    ax.set_ylabel('')
+    ax.set_zlabel('')
+
+    # x_major_locator=MultipleLocator(1)
+    # y_major_locator=MultipleLocator(1)
+    # z_major_locator=MultipleLocator(1)
+    # ax.xaxis.set_major_locator(x_major_locator)
+    # ax.yaxis.set_major_locator(y_major_locator)
+    # ax.zaxis.set_major_locator(z_major_locator)
+    
+    # # ax.view_init(45, 30, 120)
+    # # ax.view_init(-45, 0, 90)
+    # ax.view_init(-45, 45, 45)
+    
+    # ax.set_ylim((-0.22, 0.22))
+    # ax.set_xlim((-0.25, -0.15))
+    # ax.set_ylim((-0.6, -0.4))
+    # ax.set_box_aspect(1)
+    # set_aspect('equal', adjustable='datalim')
+    # plt.show()
+    
+    # # # plt.zlim((-0.5, 0.4))
+
+    # Modification for EBARF end
 
 
 def colored_line_collection(
@@ -601,17 +680,44 @@ def traj_xyz(axarr: np.ndarray, traj: trajectory.PosePath3D, style: str = '-',
         f"$x$ ({length_unit.value})", f"$y$ ({length_unit.value})",
         f"$z$ ({length_unit.value})"
     ]
+    # Modification for EBARF begin
     for i in range(0, 3):
+      if not block_discontinuity: # original version
         if length_unit is not Unit.meters:
             formatter = _get_length_formatter(length_unit)
             axarr[i].yaxis.set_major_formatter(formatter)
         axarr[i].plot(x, traj.positions_xyz[:, i], style, color=color,
                       label=label, alpha=alpha)
         axarr[i].set_ylabel(ylabels[i])
+      else: # block discontinuity version
+        last_idx = 0
+        for j in range(1, len(x)):
+            # If the timestamp gap is larger than 0.4 seconds, plot the segment and start a new one
+            if x[j] - x[j - 1] > 0.4:
+                axarr[i].plot(x[last_idx:j], traj.positions_xyz[last_idx:j, i], style, color=color,
+                              label=label if last_idx == 0 else None, alpha=alpha)
+                last_idx = j
+        # Plot the last segment
+        axarr[i].plot(x[last_idx:], traj.positions_xyz[last_idx:, i], style, color=color,
+                      label=label if last_idx == 0 else None, alpha=alpha)
+        axarr[i].set_ylabel(ylabels[i])
+    # Modification for EBARF end
+
     axarr[2].set_xlabel(xlabel)
     if label:
         axarr[0].legend(frameon=True)
 
+# Loop through the sequence and apply the adjustments based on pi
+def adjust_discontinuity(angles):
+    adjust_angles = np.array(angles)
+    for i in range(1, len(angles)):
+        diff = angles[i] - angles[i-1]
+        
+        if diff > np.pi:
+            adjust_angles[i] -= 2 * np.pi
+        elif diff < -np.pi:
+            adjust_angles[i] += 2 * np.pi
+    return adjust_angles
 
 def traj_rpy(axarr: np.ndarray, traj: trajectory.PosePath3D, style: str = '-',
              color='black', label: str = "", alpha: float = 1.0,
@@ -632,6 +738,7 @@ def traj_rpy(axarr: np.ndarray, traj: trajectory.PosePath3D, style: str = '-',
         raise PlotException("expected an axis array with 3 subplots - got " +
                             str(len(axarr)))
     angles = traj.get_orientations_euler(SETTINGS.euler_angle_sequence)
+    # angles = traj.get_orientations_euler("sxyz")
     if isinstance(traj, trajectory.PoseTrajectory3D):
         if start_timestamp:
             x = traj.timestamps - start_timestamp
@@ -643,9 +750,24 @@ def traj_rpy(axarr: np.ndarray, traj: trajectory.PosePath3D, style: str = '-',
         xlabel = "index"
     ylabels = ["$roll$ (deg)", "$pitch$ (deg)", "$yaw$ (deg)"]
     for i in range(0, 3):
+      # Modification for EBARF begin
+      if not block_discontinuity: # original version
         axarr[i].plot(x, np.rad2deg(angles[:, i]), style, color=color,
                       label=label, alpha=alpha)
         axarr[i].set_ylabel(ylabels[i])
+      else: # block discontinuity version
+        last_idx = 0
+        for j in range(1, len(x)):
+            # If the timestamp gap is larger than 0.4 seconds, plot the segment and start a new one
+            if x[j] - x[j - 1] > 0.4:
+                axarr[i].plot(x[last_idx:j], np.rad2deg(angles[last_idx:j, i]), style, color=color,
+                              label=label if last_idx == 0 else None, alpha=alpha)
+                last_idx = j
+        # Plot the last segment
+        axarr[i].plot(x[last_idx:], np.rad2deg(angles[last_idx:, i]), style, color=color,
+                      label=label if last_idx == 0 else None, alpha=alpha)
+        axarr[i].set_ylabel(ylabels[i])
+        # Modification for EBARF end
     axarr[2].set_xlabel(xlabel)
     if label:
         axarr[0].legend(frameon=True)
